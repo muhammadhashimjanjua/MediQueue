@@ -1,0 +1,6 @@
+# NetBeans build & temporary files
+build/
+dist/
+nbproject/private/
+*.class
+*.log
