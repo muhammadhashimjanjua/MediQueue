@@ -5,10 +5,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-/**
- * Handles database connectivity and automatic schema initialization
- * for the MediQueue application using MySQL (XAMPP).
- */
+
 public class DBConnection {
 
     private static final String HOST = "localhost";

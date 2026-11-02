@@ -6,9 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import mediqueue.db.DBConnection;
 
-/**
- * Handles database-backed authentication and user registration for MediQueue.
- */
+
 public class AuthService {
 
     public enum Role {
@@ -37,10 +35,7 @@ public class AuthService {
         return lastError;
     }
 
-    /**
-     * Authenticates a user against MySQL database.
-     * @return the user's full name on success, or null on failure.
-     */
+    
     public String login(String username, char[] password, Role role) {
         lastError = null;
         if (username == null || username.trim().isEmpty() || password == null || password.length == 0 || role == null) {
@@ -79,10 +74,7 @@ public class AuthService {
         }
     }
 
-    /**
-     * Registers a new user into MySQL database.
-     * @return true on success, false on failure (check getLastError() for details).
-     */
+    
     public boolean register(String fullName, String username, char[] password, Role role) {
         lastError = null;
 
