@@ -12,6 +12,8 @@ public class LoginFrame extends JFrame {
 
     private static final Color PRIMARY = new Color(0x0F766E);
     private static final Color PRIMARY_DARK = new Color(0x115E59);
+    private static final Color BUTTON_COLOR = new Color(0x115E59);
+    private static final Color BUTTON_HOVER = new Color(0x0D4440);
     private static final Color ERROR = new Color(0xB91C1C);
 
     private final AuthService auth = new AuthService();
@@ -21,7 +23,7 @@ public class LoginFrame extends JFrame {
     private final JComboBox<Role> cmbRole = new JComboBox<Role>(Role.values());
     private final JCheckBox chkShow = new JCheckBox("Show password");
     private final JLabel lblError = new JLabel(" ");
-    private final JButton btnLogin = new JButton("Log In");
+    private final StyledButton btnLogin = new StyledButton("Log In", BUTTON_COLOR, BUTTON_HOVER, 6);
     private final JButton btnGoSignUp = new JButton("Don't have an account? Sign Up");
 
     public LoginFrame() {
@@ -95,18 +97,8 @@ public class LoginFrame extends JFrame {
         lblError.setForeground(ERROR);
         lblError.setFont(new Font("SansSerif", Font.PLAIN, 11));
 
-        btnLogin.setBackground(PRIMARY);
-        btnLogin.setForeground(Color.WHITE);
         btnLogin.setFont(new Font("SansSerif", Font.BOLD, 14));
-        btnLogin.setFocusPainted(false);
         btnLogin.setBorder(new EmptyBorder(9, 0, 9, 0));
-        btnLogin.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnLogin.setOpaque(true);
-        btnLogin.setBorderPainted(false);
-        btnLogin.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { btnLogin.setBackground(PRIMARY_DARK); }
-            @Override public void mouseExited(MouseEvent e)  { btnLogin.setBackground(PRIMARY); }
-        });
 
         btnGoSignUp.setForeground(PRIMARY);
         btnGoSignUp.setBackground(Color.WHITE);

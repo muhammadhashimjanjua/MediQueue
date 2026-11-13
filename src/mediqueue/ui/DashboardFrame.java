@@ -29,6 +29,8 @@ public class DashboardFrame extends JFrame {
 
     private static final Color PRIMARY = new Color(0x0F766E);
     private static final Color PRIMARY_DARK = new Color(0x115E59);
+    private static final Color BUTTON_COLOR = new Color(0x115E59);
+    private static final Color BUTTON_HOVER = new Color(0x0D4440);
     private static final Color BG_LIGHT = new Color(0xF3F4F6);
     private static final Color BORDER_COLOR = new Color(0xE5E7EB);
 
@@ -44,7 +46,7 @@ public class DashboardFrame extends JFrame {
     private final JTextField txtDate = new JTextField();
     private final JComboBox<String> cmbSlots = new JComboBox<String>();
     private final JComboBox<String> cmbApptType = new JComboBox<String>(new String[]{"SCHEDULED", "WALK_IN"});
-    private final JButton btnBook = new JButton("Confirm Booking");
+    private final StyledButton btnBook = new StyledButton("Confirm Booking", BUTTON_COLOR, BUTTON_HOVER, 6);
     private final DefaultTableModel modelAppointments = new DefaultTableModel(
             new String[]{"ID", "Patient", "Doctor", "Date", "Slot", "Type", "Status"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
@@ -57,8 +59,8 @@ public class DashboardFrame extends JFrame {
     private final JComboBox<Doctor> cmbTriageDoctor = new JComboBox<Doctor>();
     private final JComboBox<TriageCategory> cmbTriageCategory = new JComboBox<TriageCategory>(TriageCategory.values());
     private final JTextField txtComplaint = new JTextField();
-    private final JButton btnCheckIn = new JButton("Complete Triage Check-In");
-    private final JButton btnCallNext = new JButton("Call Next Patient / Mark Served");
+    private final StyledButton btnCheckIn = new StyledButton("Complete Triage Check-In", BUTTON_COLOR, BUTTON_HOVER, 6);
+    private final StyledButton btnCallNext = new StyledButton("Call Next Patient / Mark Served", BUTTON_COLOR, BUTTON_HOVER, 6);
     private final JLabel lblQueueStats = new JLabel("Queue Status: Loading...");
     private final DefaultTableModel modelTriage = new DefaultTableModel(
             new String[]{"Rank", "Category", "Patient", "Doctor", "Target Max Wait", "Chief Complaint", "Check-in Time", "Status"}, 0) {
@@ -124,13 +126,9 @@ public class DashboardFrame extends JFrame {
                 + "User: <b>" + currentUser + "</b> &nbsp;|&nbsp; Role: <b>" + currentRole + "</b>"
                 + "<br><span style='font-size:10px;color:#A7F3D0;'>● MySQL Connected (mediqueue_db)</span></div></html>");
 
-        JButton btnLogout = new JButton("Log Out");
-        btnLogout.setBackground(new Color(0xB91C1C));
-        btnLogout.setForeground(Color.WHITE);
+        StyledButton btnLogout = new StyledButton("Log Out", new Color(0xB91C1C), new Color(0x991B1B), 6);
         btnLogout.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btnLogout.setFocusPainted(false);
         btnLogout.setBorder(new EmptyBorder(6, 14, 6, 14));
-        btnLogout.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnLogout.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
                 new LoginFrame().setVisible(true);
@@ -180,12 +178,8 @@ public class DashboardFrame extends JFrame {
             cmbSlots.addItem(slot);
         }
 
-        btnBook.setBackground(PRIMARY);
-        btnBook.setForeground(Color.WHITE);
         btnBook.setFont(new Font("SansSerif", Font.BOLD, 13));
-        btnBook.setFocusPainted(false);
         btnBook.setBorder(new EmptyBorder(9, 0, 9, 0));
-        btnBook.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         int row = 0;
         c.gridy = row++; formCard.add(lblTitle, c);
@@ -317,12 +311,8 @@ public class DashboardFrame extends JFrame {
         JLabel lblDesc = new JLabel("<html><span style='color:#6B7280;font-size:11px'>"
                 + "Categorize patients by urgency (Categories 1–5). Category 1 jumps to the front.</span></html>");
 
-        btnCheckIn.setBackground(PRIMARY);
-        btnCheckIn.setForeground(Color.WHITE);
         btnCheckIn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        btnCheckIn.setFocusPainted(false);
         btnCheckIn.setBorder(new EmptyBorder(9, 0, 9, 0));
-        btnCheckIn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         int row = 0;
         c.gridy = row++; formCard.add(lblTitle, c);
@@ -379,11 +369,7 @@ public class DashboardFrame extends JFrame {
         JPanel queueActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         queueActions.setOpaque(false);
 
-        btnCallNext.setBackground(new Color(0x11, 0x5E, 0x59));
-        btnCallNext.setForeground(Color.WHITE);
         btnCallNext.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btnCallNext.setFocusPainted(false);
-        btnCallNext.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnCallNext.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) { doCallNext(); }
         });
