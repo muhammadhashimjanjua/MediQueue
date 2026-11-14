@@ -76,12 +76,20 @@ public class DBConnection {
             String createUsersTable = "CREATE TABLE IF NOT EXISTS users ("
                     + "id INT AUTO_INCREMENT PRIMARY KEY,"
                     + "full_name VARCHAR(100) NOT NULL,"
+                    + "phone VARCHAR(20) DEFAULT '',"
                     + "username VARCHAR(50) NOT NULL UNIQUE,"
                     + "password VARCHAR(255) NOT NULL,"
                     + "role VARCHAR(30) NOT NULL,"
                     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ")";
             stmt.executeUpdate(createUsersTable);
+
+            // Ensure phone column exists if table was created previously
+            try {
+                stmt.executeUpdate("ALTER TABLE users ADD COLUMN phone VARCHAR(20) DEFAULT '' AFTER full_name");
+            } catch (SQLException ignored) {
+                // column already exists
+            }
 
             // Doctors table
             String createDoctorsTable = "CREATE TABLE IF NOT EXISTS doctors ("

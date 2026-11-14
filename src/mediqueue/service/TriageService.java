@@ -72,16 +72,41 @@ public class TriageService {
         }
     }
 
+    public enum QueuePolicy {
+        PRIORITY_WITH_AGING("Priority with Aging (Anti-Starvation)"),
+        STRICT_PRIORITY("Strict Priority (Manchester Triage Only)"),
+        FCFS("First-Come, First-Served (FCFS)");
+
+        private final String displayName;
+
+        QueuePolicy(String displayName) {
+            this.displayName = displayName;
+        }
+
+        @Override
+        public String toString() {
+            return displayName;
+        }
+    }
+
     /**
-     * Returns the active queue ordered by Manchester Triage Category (Category 1 first)
-     * and then by check-in time (FIFO for equal priority).
+     * Default queue retrieval using the Anti-Starvation Aging Rule (Priority with Aging).
      */
     public List<TriageEntry> getActiveTriageQueue() {
+        return getActiveTriageQueue(QueuePolicy.PRIORITY_WITH_AGING, 0);
+    }
+
+    /**
+     * Retrieves the active waiting queue ordered by the selected Queue Policy:
+     * - PRIORITY_WITH_AGING: Advances category by 1 level per 30 minutes waited (Anti-Starvation).
+     * - STRICT_PRIORITY: Raw Manchester Triage category ordering (1 to 5).
+     * - FCFS: Strict check-in order.
+     */
+    public List<TriageEntry> getActiveTriageQueue(QueuePolicy policy, final int simulatedExtraMinutes) {
         List<TriageEntry> list = new ArrayList<TriageEntry>();
         String sql = "SELECT id, appointment_id, patient_name, doctor_id, doctor_name, category, "
                 + "chief_complaint, check_in_time, status "
-                + "FROM triage_entries WHERE status = 'WAITING' "
-                + "ORDER BY category ASC, check_in_time ASC";
+                + "FROM triage_entries WHERE status = 'WAITING'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -106,6 +131,44 @@ public class TriageService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
+        final QueuePolicy activePolicy = (policy != null) ? policy : QueuePolicy.PRIORITY_WITH_AGING;
+
+        java.util.Collections.sort(list, new java.util.Comparator<TriageEntry>() {
+            @Override
+            public int compare(TriageEntry a, TriageEntry b) {
+                if (activePolicy == QueuePolicy.PRIORITY_WITH_AGING) {
+                    // Compare effective category (after anti-starvation aging)
+                    int effA = a.getEffectiveCategory(simulatedExtraMinutes).getLevel();
+                    int effB = b.getEffectiveCategory(simulatedExtraMinutes).getLevel();
+                    if (effA != effB) {
+                        return Integer.compare(effA, effB);
+                    }
+                    // Equal effective priority: FIFO by check-in time
+                    Timestamp tA = a.getCheckInTime();
+                    Timestamp tB = b.getCheckInTime();
+                    if (tA != null && tB != null) return tA.compareTo(tB);
+                    return Integer.compare(a.getId(), b.getId());
+                } else if (activePolicy == QueuePolicy.STRICT_PRIORITY) {
+                    int catA = a.getCategory().getLevel();
+                    int catB = b.getCategory().getLevel();
+                    if (catA != catB) {
+                        return Integer.compare(catA, catB);
+                    }
+                    Timestamp tA = a.getCheckInTime();
+                    Timestamp tB = b.getCheckInTime();
+                    if (tA != null && tB != null) return tA.compareTo(tB);
+                    return Integer.compare(a.getId(), b.getId());
+                } else {
+                    // FCFS
+                    Timestamp tA = a.getCheckInTime();
+                    Timestamp tB = b.getCheckInTime();
+                    if (tA != null && tB != null) return tA.compareTo(tB);
+                    return Integer.compare(a.getId(), b.getId());
+                }
+            }
+        });
+
         return list;
     }
 

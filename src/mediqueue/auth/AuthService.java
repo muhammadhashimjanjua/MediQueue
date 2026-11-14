@@ -74,38 +74,106 @@ public class AuthService {
         }
     }
 
-    
+    /**
+     * Checks if a string contains ONLY alphabetic characters (letters and spaces).
+     */
+    public static boolean isAlphabetOnly(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        return str.trim().matches("^[a-zA-Z\\s]+$");
+    }
+
+    /**
+     * Checks if a string contains ONLY numeric digits (0-9).
+     */
+    public static boolean isNumericOnly(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        return str.trim().matches("^[0-9]+$");
+    }
+
+    /**
+     * Checks if a string contains alphanumeric characters (both letters and numbers allowed).
+     */
+    public static boolean isAlphanumeric(String str) {
+        if (str == null || str.trim().isEmpty()) return false;
+        return str.trim().matches("^[a-zA-Z0-9_]+$");
+    }
+
+    /**
+     * Checks if a string contains both letters and numbers.
+     */
+    public static boolean containsBothLettersAndNumbers(String str) {
+        if (str == null) return false;
+        boolean hasLetter = false;
+        boolean hasDigit = false;
+        for (char c : str.toCharArray()) {
+            if (Character.isLetter(c)) hasLetter = true;
+            if (Character.isDigit(c)) hasDigit = true;
+            if (hasLetter && hasDigit) return true;
+        }
+        return false;
+    }
+
     public boolean register(String fullName, String username, char[] password, Role role) {
+        return register(fullName, "", username, password, role);
+    }
+
+    public boolean register(String fullName, String phone, String username, char[] password, Role role) {
         lastError = null;
 
         if (fullName == null || fullName.trim().isEmpty()) {
             lastError = "Full name cannot be empty.";
             return false;
         }
+        String cleanName = fullName.trim();
+        if (!isAlphabetOnly(cleanName)) {
+            lastError = "Full Name must contain only alphabets (letters and spaces).";
+            return false;
+        }
+
+        String cleanPhone = (phone != null) ? phone.trim() : "";
+        if (!cleanPhone.isEmpty()) {
+            if (!isNumericOnly(cleanPhone)) {
+                lastError = "Phone number must contain only numbers (digits).";
+                return false;
+            }
+            if (cleanPhone.length() < 7 || cleanPhone.length() > 15) {
+                lastError = "Phone number must be between 7 and 15 digits.";
+                return false;
+            }
+        }
+
         if (username == null || username.trim().isEmpty()) {
             lastError = "Username cannot be empty.";
             return false;
         }
-        if (username.trim().length() < 3) {
+        String cleanUser = username.trim();
+        if (cleanUser.length() < 3) {
             lastError = "Username must be at least 3 characters.";
             return false;
         }
+        if (!isAlphanumeric(cleanUser)) {
+            lastError = "Username can only contain letters and numbers.";
+            return false;
+        }
+
         if (password == null || password.length == 0) {
             lastError = "Password cannot be empty.";
             return false;
         }
-        if (password.length < 4) {
-            lastError = "Password must be at least 4 characters.";
+        String passStr = new String(password);
+        if (passStr.length() < 6) {
+            lastError = "Password must be at least 6 characters.";
             return false;
         }
+        if (!containsBothLettersAndNumbers(passStr)) {
+            lastError = "Password must contain both letters and numbers.";
+            return false;
+        }
+
         if (role == null) {
             lastError = "Please select a role.";
             return false;
         }
-
-        String cleanName = fullName.trim();
-        String cleanUser = username.trim();
-        String passStr = new String(password);
 
         try (Connection conn = DBConnection.getConnection()) {
             // Check if username already exists
@@ -121,12 +189,13 @@ public class AuthService {
             }
 
             // Insert new user
-            String insertSql = "INSERT INTO users (full_name, username, password, role) VALUES (?, ?, ?, ?)";
+            String insertSql = "INSERT INTO users (full_name, phone, username, password, role) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement insertPs = conn.prepareStatement(insertSql)) {
                 insertPs.setString(1, cleanName);
-                insertPs.setString(2, cleanUser);
-                insertPs.setString(3, passStr);
-                insertPs.setString(4, role.name());
+                insertPs.setString(2, cleanPhone);
+                insertPs.setString(3, cleanUser);
+                insertPs.setString(4, passStr);
+                insertPs.setString(5, role.name());
 
                 int rows = insertPs.executeUpdate();
                 return rows > 0;
