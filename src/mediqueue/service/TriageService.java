@@ -215,4 +215,15 @@ public class TriageService {
             return false;
         }
     }
+
+    /**
+     * Executes a multi-threaded queue policy simulation comparing FCFS, Strict Priority,
+     * and Priority with Aging using 3 concurrent worker threads and Thread.join() barrier synchronization.
+     *
+     * @param patientCount Number of patient arrivals to simulate.
+     * @return List of benchmark results from each policy worker thread.
+     */
+    public List<mediqueue.thread.PolicySimulationResult> runConcurrentPolicySimulation(int patientCount) {
+        return mediqueue.thread.QueuePolicySimulator.runConcurrentSimulation(patientCount, 2, System.currentTimeMillis());
+    }
 }

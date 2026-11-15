@@ -20,6 +20,8 @@ import mediqueue.model.TriageEntry;
 import mediqueue.service.BookingService;
 import mediqueue.service.TriageService;
 import mediqueue.service.TriageService.QueuePolicy;
+import mediqueue.thread.QueueMonitorThread;
+import mediqueue.thread.QueuePolicySimulator;
 
 /**
  * MediQueue Main Dashboard.
@@ -81,7 +83,12 @@ public class DashboardFrame extends JFrame {
     private QueuePolicy currentPolicy = QueuePolicy.PRIORITY_WITH_AGING;
     private int simulatedAgingMinutes = 0;
     private final JComboBox<QueuePolicy> cmbPolicy = new JComboBox<QueuePolicy>(QueuePolicy.values());
-    private final StyledButton btnSimulateAging = new StyledButton("⚡ Test +30m Aging", new Color(0xF3F4F6), new Color(0xE5E7EB), 6);
+    private final StyledButton btnSimulateAging = new StyledButton("+30m Aging Test", new Color(0xF3F4F6), new Color(0xE5E7EB), 6);
+
+    // Multi-Threading Components
+    private QueueMonitorThread queueMonitorThread;
+    private final StyledButton btnToggleMonitor = new StyledButton("Live Monitor: ON (5s)", new Color(0xDC, 0xFC, 0xE7), new Color(0xBB, 0xF7, 0xD0), 6);
+    private final StyledButton btnPolicySimulation = new StyledButton("Compare Policies (Threads)", new Color(0xFE, 0xF3, 0xC7), new Color(0xFD, 0xE6, 0x8A), 6);
 
     // Triage KPI Metric Labels
     private final JLabel lblMetricWaiting = new JLabel("0");
@@ -101,8 +108,8 @@ public class DashboardFrame extends JFrame {
         this.currentRole = role;
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(1180, 760);
-        setMinimumSize(new Dimension(1080, 700));
+        setSize(1240, 780);
+        setMinimumSize(new Dimension(1120, 700));
         setLocationRelativeTo(null);
 
         initUI();
@@ -110,6 +117,14 @@ public class DashboardFrame extends JFrame {
         refreshAppointments();
         refreshTriageQueue();
         refreshPendingAppointments();
+        startLiveQueueMonitor();
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                stopLiveQueueMonitor();
+            }
+        });
     }
 
     private void initUI() {
@@ -622,9 +637,9 @@ public class DashboardFrame extends JFrame {
         // Right: Live Triage Priority Queue Table Card
         JPanel queueCard = buildModernCard("Live Priority Queue (MTS)", "Dynamic priority ordering with 30-min Anti-Starvation aging promotion");
 
-        // Action Toolbar: Policy Selector + Simulate Aging + Call Next + Refresh
-        JPanel queueActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        queueActions.setOpaque(false);
+        // Action Toolbars: Header Controls (Policy + Refresh) & Primary Actions (Threads & Queue Operations)
+        JPanel topControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        topControls.setOpaque(false);
 
         styleComboBox(cmbPolicy);
         cmbPolicy.setPreferredSize(new Dimension(210, 28));
@@ -637,24 +652,38 @@ public class DashboardFrame extends JFrame {
             }
         });
 
+        StyledButton btnRefreshQueue = new StyledButton("Refresh", new Color(0xF3F4F6), new Color(0xE5E7EB), 6);
+        btnRefreshQueue.setForeground(TEXT_DARK);
+        btnRefreshQueue.setFont(new Font("SansSerif", Font.BOLD, 11));
+        btnRefreshQueue.setBorder(new EmptyBorder(5, 12, 5, 12));
+        btnRefreshQueue.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { refreshTriageQueue(); }
+        });
+
+        topControls.add(cmbPolicy);
+        topControls.add(btnRefreshQueue);
+
+        JPanel queueCardHeader = (JPanel) queueCard.getComponent(0);
+        queueCardHeader.add(topControls, BorderLayout.EAST);
+
         btnSimulateAging.setFont(new Font("SansSerif", Font.BOLD, 11));
-        btnSimulateAging.setBorder(new EmptyBorder(4, 10, 4, 10));
+        btnSimulateAging.setBorder(new EmptyBorder(5, 10, 5, 10));
         btnSimulateAging.setToolTipText("Fast-forward simulated wait by 30 mins to demonstrate anti-starvation aging");
         btnSimulateAging.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
                 if (simulatedAgingMinutes == 0) {
                     simulatedAgingMinutes = 30;
-                    btnSimulateAging.setText("⚡ +30m Active");
+                    btnSimulateAging.setText("+30m Aging Active");
                     btnSimulateAging.setBackground(new Color(0xFE, 0xF3, 0xC7));
                     btnSimulateAging.setForeground(new Color(0x92, 0x40, 0x0E));
                 } else if (simulatedAgingMinutes == 30) {
                     simulatedAgingMinutes = 60;
-                    btnSimulateAging.setText("⚡ +60m Active");
+                    btnSimulateAging.setText("+60m Aging Active");
                     btnSimulateAging.setBackground(new Color(0xFE, 0xE2, 0xE2));
                     btnSimulateAging.setForeground(new Color(0x99, 0x1B, 0x1B));
                 } else {
                     simulatedAgingMinutes = 0;
-                    btnSimulateAging.setText("⚡ Test +30m Aging");
+                    btnSimulateAging.setText("+30m Aging Test");
                     btnSimulateAging.setBackground(new Color(0xF3, 0xF4, 0xF6));
                     btnSimulateAging.setForeground(TEXT_DARK);
                 }
@@ -668,21 +697,46 @@ public class DashboardFrame extends JFrame {
             @Override public void actionPerformed(ActionEvent e) { doCallNext(); }
         });
 
-        StyledButton btnRefreshQueue = new StyledButton("Refresh", new Color(0xF3F4F6), new Color(0xE5E7EB), 6);
-        btnRefreshQueue.setForeground(TEXT_DARK);
-        btnRefreshQueue.setFont(new Font("SansSerif", Font.BOLD, 11));
-        btnRefreshQueue.setBorder(new EmptyBorder(5, 12, 5, 12));
-        btnRefreshQueue.addActionListener(new ActionListener() {
-            @Override public void actionPerformed(ActionEvent e) { refreshTriageQueue(); }
+        btnToggleMonitor.setFont(new Font("SansSerif", Font.BOLD, 11));
+        btnToggleMonitor.setBorder(new EmptyBorder(5, 10, 5, 10));
+        btnToggleMonitor.setToolTipText("Toggle background daemon thread that auto-refreshes queue wait times every 5s");
+        btnToggleMonitor.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (queueMonitorThread != null && queueMonitorThread.isMonitoring()) {
+                    queueMonitorThread.pauseMonitoring();
+                } else if (queueMonitorThread != null && queueMonitorThread.isPaused()) {
+                    queueMonitorThread.resumeMonitoring();
+                } else {
+                    startLiveQueueMonitor();
+                }
+                updateMonitorStatusUI();
+            }
         });
 
-        queueActions.add(cmbPolicy);
-        queueActions.add(btnSimulateAging);
-        queueActions.add(btnCallNext);
-        queueActions.add(btnRefreshQueue);
+        btnPolicySimulation.setFont(new Font("SansSerif", Font.BOLD, 11));
+        btnPolicySimulation.setForeground(new Color(0x92, 0x40, 0x0E));
+        btnPolicySimulation.setBorder(new EmptyBorder(5, 10, 5, 10));
+        btnPolicySimulation.setToolTipText("Run 3 concurrent worker threads comparing FCFS, Strict Priority, and Priority with Aging");
+        btnPolicySimulation.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new SimulationDialog(DashboardFrame.this).setVisible(true);
+            }
+        });
 
-        JPanel queueCardHeader = (JPanel) queueCard.getComponent(0);
-        queueCardHeader.add(queueActions, BorderLayout.EAST);
+        JPanel actionToolbar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
+        actionToolbar.setOpaque(false);
+        actionToolbar.add(btnToggleMonitor);
+        actionToolbar.add(btnPolicySimulation);
+        actionToolbar.add(btnSimulateAging);
+        actionToolbar.add(btnCallNext);
+
+        JPanel northContainer = new JPanel(new BorderLayout(0, 6));
+        northContainer.setOpaque(false);
+        northContainer.add(queueCardHeader, BorderLayout.NORTH);
+        northContainer.add(actionToolbar, BorderLayout.SOUTH);
+        queueCard.add(northContainer, BorderLayout.NORTH);
 
         // Style Queue Table
         styleTable(tblTriage);
@@ -884,8 +938,53 @@ public class DashboardFrame extends JFrame {
         String agingInfo = (currentPolicy == QueuePolicy.PRIORITY_WITH_AGING)
                 ? "Active (+1 level per 30m wait)" : "Inactive (" + currentPolicy + ")";
 
+        String threadInfo = (queueMonitorThread != null && queueMonitorThread.isMonitoring())
+                ? "Live Monitor: Running (Tick #" + queueMonitorThread.getTickCount() + ")"
+                : "Live Monitor: Paused";
+
         lblQueueStats.setText("Policy: " + currentPolicy + " | Anti-Starvation Rule: " + agingInfo
-                + " | " + queue.size() + " Waiting (" + promotedCount + " boosted by aging)");
+                + " | " + queue.size() + " Waiting (" + promotedCount + " boosted) | " + threadInfo);
+    }
+
+    /**
+     * Starts the background daemon thread that periodically refreshes the queue
+     * and evaluates Anti-Starvation aging in real-time.
+     */
+    public synchronized void startLiveQueueMonitor() {
+        if (queueMonitorThread != null && queueMonitorThread.isAlive()) {
+            queueMonitorThread.stopMonitoring();
+        }
+        queueMonitorThread = new QueueMonitorThread(5000, new Runnable() {
+            @Override
+            public void run() {
+                refreshTriageQueue();
+                updateMonitorStatusUI();
+            }
+        });
+        queueMonitorThread.start();
+        updateMonitorStatusUI();
+    }
+
+    /**
+     * Stops the background monitor thread gracefully.
+     */
+    public synchronized void stopLiveQueueMonitor() {
+        if (queueMonitorThread != null) {
+            queueMonitorThread.stopMonitoring();
+        }
+        updateMonitorStatusUI();
+    }
+
+    private void updateMonitorStatusUI() {
+        if (queueMonitorThread != null && queueMonitorThread.isMonitoring()) {
+            btnToggleMonitor.setText("Live Monitor: ON (5s)");
+            btnToggleMonitor.setBackground(new Color(0xDC, 0xFC, 0xE7));
+            btnToggleMonitor.setForeground(new Color(0x16, 0x65, 0x34));
+        } else {
+            btnToggleMonitor.setText("Live Monitor: PAUSED");
+            btnToggleMonitor.setBackground(new Color(0xFE, 0xE2, 0xE2));
+            btnToggleMonitor.setForeground(new Color(0x99, 0x1B, 0x1B));
+        }
     }
 
     private void doCallNext() {
